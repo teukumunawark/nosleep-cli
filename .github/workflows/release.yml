@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Build release binaries
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+
+          $targets = @(
+            @{ Arch = "amd64"; Output = "nosleep-windows-amd64.exe" },
+            @{ Arch = "arm64"; Output = "nosleep-windows-arm64.exe" }
+          )
+
+          foreach ($target in $targets) {
+            $env:GOOS = "windows"
+            $env:GOARCH = $target.Arch
+            go build -trimpath -ldflags="-s -w" -o "dist/$($target.Output)" ./cmd/nosleep
+          }
+
+          Get-ChildItem dist/*.exe | ForEach-Object {
+            $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)"
+          } | Set-Content -Encoding ascii dist/checksums.txt
+
+      - name: Publish GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $files = Get-ChildItem dist | ForEach-Object { $_.FullName }
+
+          gh release create $env:GITHUB_REF_NAME @files `
+            --verify-tag `
+            --title "NoSleep CLI $env:GITHUB_REF_NAME" `
+            --notes "Windows binaries are attached to this release. Download the file for your architecture, rename it to nosleep.exe if needed, and place it in a directory on your User Path."

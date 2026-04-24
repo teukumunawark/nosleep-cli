@@ -13,26 +13,22 @@ mouse, press keys, or simulate user input.
 
 ## Installation
 
-Build from source:
+Download the Windows binary from the latest GitHub release:
+
+https://github.com/teukumunawark/nosleep-cli/releases/latest
+
+Use `nosleep-windows-amd64.exe` for most Windows PCs. Use
+`nosleep-windows-arm64.exe` on Windows ARM64.
+
+Create a directory for the command and copy the downloaded binary there as
+`nosleep.exe`:
 
 ```powershell
-go build -o nosleep.exe .\cmd\nosleep
+New-Item -ItemType Directory -Path C:\Tools\nosleep -Force
+Copy-Item .\nosleep-windows-amd64.exe C:\Tools\nosleep\nosleep.exe
 ```
 
-The repository also includes a convenience build script:
-
-```powershell
-.\build.ps1
-```
-
-By default, the script writes the binary to:
-
-```text
-C:\Tools\nosleep\nosleep.exe
-```
-
-To run `nosleep` from any directory, add the build directory to the User
-`Path` environment variable:
+Add this directory to the User `Path` environment variable:
 
 ```text
 C:\Tools\nosleep
@@ -53,6 +49,22 @@ Expected output:
 ```text
 C:\Tools\nosleep\nosleep.exe
 ```
+
+### Build from source
+
+Build directly with Go:
+
+```powershell
+go build -o nosleep.exe .\cmd\nosleep
+```
+
+The repository also includes a convenience build script:
+
+```powershell
+.\build.ps1
+```
+
+By default, the script writes the binary to `C:\Tools\nosleep\nosleep.exe`.
 
 ## Usage
 
@@ -97,6 +109,17 @@ Build the CLI:
 ```powershell
 go build -o nosleep.exe .\cmd\nosleep
 ```
+
+Create a release:
+
+```powershell
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Pushing a `v*` tag starts the release workflow. The workflow builds Windows
+amd64 and arm64 binaries, writes SHA-256 checksums, and attaches them to a
+GitHub release.
 
 Project layout:
 
