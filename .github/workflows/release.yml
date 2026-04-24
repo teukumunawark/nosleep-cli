@@ -47,6 +47,8 @@ jobs:
             "$hash  $($_.Name)"
           } | Set-Content -Encoding ascii dist/checksums.txt
 
+          Copy-Item install.ps1 dist/install.ps1
+
       - name: Publish GitHub release
         shell: pwsh
         env:
@@ -57,4 +59,4 @@ jobs:
           gh release create $env:GITHUB_REF_NAME @files `
             --verify-tag `
             --title "NoSleep CLI $env:GITHUB_REF_NAME" `
-            --notes "Windows binaries are attached to this release. Download the file for your architecture, rename it to nosleep.exe if needed, and place it in a directory on your User Path."
+            --notes "Windows binaries and checksums are attached to this release. Download install.ps1 to install the matching binary for your system, or download a binary manually and place it in a directory on your User Path."

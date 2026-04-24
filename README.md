@@ -13,23 +13,35 @@ mouse, press keys, or simulate user input.
 
 ## Installation
 
-Download the Windows binary from the latest GitHub release:
+Download `install.ps1` from the latest GitHub release:
 
 https://github.com/teukumunawark/nosleep-cli/releases/latest
 
-Use `nosleep-windows-amd64.exe` for most Windows PCs. Use
-`nosleep-windows-arm64.exe` on Windows ARM64.
-
-The following example installs NoSleep for the current user. Create a directory
-for the command and copy the downloaded binary there as `nosleep.exe`:
+Review the script, then run it from PowerShell:
 
 ```powershell
-$InstallDir = "$env:LOCALAPPDATA\Programs\nosleep"
-New-Item -ItemType Directory -Path $InstallDir -Force
-Copy-Item .\nosleep-windows-amd64.exe "$InstallDir\nosleep.exe"
+.\install.ps1
 ```
 
-Add this directory to the User `Path` environment variable:
+The installer downloads the matching Windows binary for the current machine,
+verifies it with the release SHA-256 checksum, and installs it for the current
+user:
+
+```text
+%LOCALAPPDATA%\Programs\nosleep\nosleep.exe
+```
+
+To also add the install directory to the User `Path`, run:
+
+```powershell
+.\install.ps1 -AddToPath
+```
+
+The script appends the install directory only if it is not already present.
+Open a new terminal after changing `Path`.
+
+To set up `Path` manually instead, add this directory to the User `Path`
+environment variable:
 
 ```text
 %LOCALAPPDATA%\Programs\nosleep
@@ -37,8 +49,7 @@ Add this directory to the User `Path` environment variable:
 
 One way to do this on Windows is to open **Edit environment variables for your
 account**, edit the User `Path` variable, and add
-`%LOCALAPPDATA%\Programs\nosleep` as a new entry. Open a new terminal after
-changing `Path`.
+`%LOCALAPPDATA%\Programs\nosleep` as a new entry.
 
 Verify that Windows resolves `nosleep` from the expected location:
 
@@ -51,6 +62,13 @@ Expected output:
 ```text
 C:\Users\<you>\AppData\Local\Programs\nosleep\nosleep.exe
 ```
+
+### Manual install
+
+Download `nosleep-windows-amd64.exe` for most Windows PCs, or
+`nosleep-windows-arm64.exe` on Windows ARM64. Rename the downloaded file to
+`nosleep.exe`, place it in a directory on your User `Path`, and verify the
+download against `checksums.txt` from the same release.
 
 ### Build from source
 
