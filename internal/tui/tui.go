@@ -120,7 +120,7 @@ func (m model) View() string {
 		return appStyle.Width(m.width).Height(m.height).Render(m.compactView())
 	}
 
-	contentWidth := min(max(32, m.width-4), 72)
+	contentWidth := minInt(maxInt(32, m.width-4), 72)
 	body := m.normalView(contentWidth)
 
 	return appStyle.Width(m.width).Height(m.height).Render(
@@ -294,14 +294,14 @@ func trimToWidth(s string, width int) string {
 	return string(runes[:width-3]) + "..."
 }
 
-func max(a, b int) int {
+func maxInt(a, b int) int {
 	if a > b {
 		return a
 	}
 	return b
 }
 
-func min(a, b int) int {
+func minInt(a, b int) int {
 	if a < b {
 		return a
 	}

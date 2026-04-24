@@ -10,20 +10,24 @@ import (
 	"nosleep-cli/internal/tui"
 )
 
+func usagePrintf(format string, args ...any) {
+	_, _ = fmt.Fprintf(os.Stderr, format, args...)
+}
+
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "NoSleep CLI - Windows sleep prevention utility\n\n")
-		fmt.Fprintf(os.Stderr, "Keeps the system and display awake without simulating mouse or keyboard input.\n\n")
-		fmt.Fprintf(os.Stderr, "Usage:\n")
-		fmt.Fprintf(os.Stderr, "  nosleep.exe [flags]\n\n")
-		fmt.Fprintf(os.Stderr, "Flags:\n")
+		usagePrintf("NoSleep CLI - Windows sleep prevention utility\n\n")
+		usagePrintf("Keeps the system and display awake without simulating mouse or keyboard input.\n\n")
+		usagePrintf("Usage:\n")
+		usagePrintf("  nosleep.exe [flags]\n\n")
+		usagePrintf("Flags:\n")
 		flag.PrintDefaults()
-		fmt.Fprintf(os.Stderr, "\nExamples:\n")
-		fmt.Fprintf(os.Stderr, "  nosleep.exe -duration 45m -mode \"Monitoring\"\n")
-		fmt.Fprintf(os.Stderr, "  nosleep.exe -duration 2h\n\n")
-		fmt.Fprintf(os.Stderr, "Notes:\n")
-		fmt.Fprintf(os.Stderr, "  - Press q, esc, or Ctrl+C to stop the session.\n")
-		fmt.Fprintf(os.Stderr, "  - Uses the Windows SetThreadExecutionState API.\n")
+		usagePrintf("\nExamples:\n")
+		usagePrintf("  nosleep.exe -duration 45m -mode \"Monitoring\"\n")
+		usagePrintf("  nosleep.exe -duration 2h\n\n")
+		usagePrintf("Notes:\n")
+		usagePrintf("  - Press q, esc, or Ctrl+C to stop the session.\n")
+		usagePrintf("  - Uses the Windows SetThreadExecutionState API.\n")
 	}
 
 	durationStr := flag.String("duration", "0", "Session duration, for example 30m or 1h. Use 0 to run until stopped.")
