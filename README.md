@@ -20,23 +20,25 @@ https://github.com/teukumunawark/nosleep-cli/releases/latest
 Use `nosleep-windows-amd64.exe` for most Windows PCs. Use
 `nosleep-windows-arm64.exe` on Windows ARM64.
 
-Create a directory for the command and copy the downloaded binary there as
-`nosleep.exe`:
+The following example installs NoSleep for the current user. Create a directory
+for the command and copy the downloaded binary there as `nosleep.exe`:
 
 ```powershell
-New-Item -ItemType Directory -Path C:\Tools\nosleep -Force
-Copy-Item .\nosleep-windows-amd64.exe C:\Tools\nosleep\nosleep.exe
+$InstallDir = "$env:LOCALAPPDATA\Programs\nosleep"
+New-Item -ItemType Directory -Path $InstallDir -Force
+Copy-Item .\nosleep-windows-amd64.exe "$InstallDir\nosleep.exe"
 ```
 
 Add this directory to the User `Path` environment variable:
 
 ```text
-C:\Tools\nosleep
+%LOCALAPPDATA%\Programs\nosleep
 ```
 
 One way to do this on Windows is to open **Edit environment variables for your
-account**, edit the User `Path` variable, and add `C:\Tools\nosleep` as a new
-entry. Open a new terminal after changing `Path`.
+account**, edit the User `Path` variable, and add
+`%LOCALAPPDATA%\Programs\nosleep` as a new entry. Open a new terminal after
+changing `Path`.
 
 Verify that Windows resolves `nosleep` from the expected location:
 
@@ -47,7 +49,7 @@ where.exe nosleep
 Expected output:
 
 ```text
-C:\Tools\nosleep\nosleep.exe
+C:\Users\<you>\AppData\Local\Programs\nosleep\nosleep.exe
 ```
 
 ### Build from source
