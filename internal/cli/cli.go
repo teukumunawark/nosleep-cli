@@ -17,6 +17,7 @@ import (
 
 type Session struct {
 	Duration   time.Duration
+	StartedAt  time.Time
 	AutoStopAt *time.Time
 	Mode       string
 	Label      string
@@ -35,7 +36,7 @@ func Run(args []string) error {
 			PrintUsage()
 			return nil
 		case "status":
-			return RunStatus()
+			return RunStatus(args[1:])
 		case "stop":
 			return RunStop()
 		}
@@ -91,14 +92,14 @@ func runForeground(session Session) error {
 		_ = keepawake.SetKeepAwake(false)
 	}()
 
-	if err := tui.Start(session.tuiSession()); err != nil {
+	if err := tui.Start(session.tuiSession(false)); err != nil {
 		return fmt.Errorf("run terminal UI: %w", err)
 	}
 
 	return nil
 }
 
-func (s Session) tuiSession() tui.Session {
+func (s Session) tuiSession(watch bool) tui.Session {
 	var autoStopAt time.Time
 	if s.AutoStopAt != nil {
 		autoStopAt = *s.AutoStopAt
@@ -106,13 +107,23 @@ func (s Session) tuiSession() tui.Session {
 
 	return tui.Session{
 		Duration:   s.Duration,
+		StartedAt:  s.StartedAt,
 		AutoStopAt: autoStopAt,
 		Kind:       coresession.ModeLabel(s.Mode),
 		Label:      s.Label,
+		WatchMode:  watch,
 	}
 }
 
-func RunStatus() error {
+func RunStatus(args []string) error {
+	flags := flag.NewFlagSet("status", flag.ContinueOnError)
+	watch := flags.Bool("w", false, "Watch status in real-time TUI")
+	flags.BoolVar(watch, "watch", false, "Watch status in real-time TUI")
+
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+
 	store, err := coresession.DefaultStore()
 	if err != nil {
 		return err
@@ -127,8 +138,33 @@ func RunStatus() error {
 		return nil
 	}
 
+	if *watch {
+		var duration time.Duration
+		if state.AutoStopAt != nil {
+			duration = state.AutoStopAt.Sub(state.StartedAt)
+		}
+
+		tuiSess := tui.Session{
+			Duration:   duration,
+			StartedAt:  state.StartedAt,
+			AutoStopAt: orZeroTime(state.AutoStopAt),
+			Kind:       coresession.ModeLabel(state.Mode),
+			Label:      state.Label,
+			WatchMode:  true,
+		}
+		
+		return tui.Start(tuiSess)
+	}
+
 	consoleui.PrintStatus(state, time.Now())
 	return nil
+}
+
+func orZeroTime(t *time.Time) time.Time {
+	if t == nil {
+		return time.Time{}
+	}
+	return *t
 }
 
 func RunStop() error {
@@ -167,6 +203,7 @@ func newSession(durationStr, untilStr, label string, now time.Time) (Session, er
 		autoStopAt := now.Add(duration)
 		return Session{
 			Duration:   duration,
+			StartedAt:  now,
 			AutoStopAt: &autoStopAt,
 			Mode:       coresession.ModeTimed,
 			Label:      label,
@@ -177,14 +214,16 @@ func newSession(durationStr, untilStr, label string, now time.Time) (Session, er
 			return Session{}, invalidUntilError(untilStr)
 		}
 		return Session{
+			StartedAt:  now,
 			AutoStopAt: &autoStopAt,
 			Mode:       coresession.ModeUntil,
 			Label:      label,
 		}, nil
 	default:
 		return Session{
-			Mode:  coresession.ModeOpenEnded,
-			Label: label,
+			StartedAt: now,
+			Mode:      coresession.ModeOpenEnded,
+			Label:     label,
 		}, nil
 	}
 }
@@ -211,19 +250,21 @@ func PrintUsage() {
 	UsagePrintf("Usage:\n")
 	UsagePrintf("  nosleep start [flags]\n")
 	UsagePrintf("  nosleep [flags]\n")
-	UsagePrintf("  nosleep status\n")
+	UsagePrintf("  nosleep status [-w]\n")
 	UsagePrintf("  nosleep stop\n\n")
 	UsagePrintf("Flags for start:\n")
 	UsagePrintf("  --duration value   Session duration, for example 30m, 2h, or 1h30m.\n")
 	UsagePrintf("  --until value      Keep awake until a 24-hour time, for example 17:30.\n")
 	UsagePrintf("  --background       Start NoSleep in the background.\n")
 	UsagePrintf("  --mode value       Optional session label, for example Monitoring or Reading.\n\n")
+	UsagePrintf("Flags for status:\n")
+	UsagePrintf("  -w, --watch        Watch the session in real-time TUI.\n\n")
 	UsagePrintf("Examples:\n")
 	UsagePrintf("  nosleep start\n")
 	UsagePrintf("  nosleep start --duration 30m\n")
 	UsagePrintf("  nosleep start --until 17:30\n\n")
 	UsagePrintf("  nosleep start --background --duration 2h\n")
-	UsagePrintf("  nosleep status\n")
+	UsagePrintf("  nosleep status -w\n")
 	UsagePrintf("  nosleep stop\n\n")
 	UsagePrintf("Notes:\n")
 	UsagePrintf("  - Press Q, ESC, or Ctrl+C to stop the session.\n")

@@ -55,28 +55,39 @@ func TestNewSession(t *testing.T) {
 			if got.Label != "test" {
 				t.Fatalf("label = %q, want test", got.Label)
 			}
+			if got.StartedAt.IsZero() {
+				t.Fatal("started at should not be zero")
+			}
 		})
 	}
 }
 
 func TestStartSessionTUISession(t *testing.T) {
 	autoStopAt := time.Date(2026, 4, 24, 18, 0, 0, 0, time.Local)
+	startedAt := time.Date(2026, 4, 24, 16, 0, 0, 0, time.Local)
 	session := Session{
 		Duration:   2 * time.Hour,
+		StartedAt:  startedAt,
 		AutoStopAt: &autoStopAt,
 		Mode:       coresession.ModeTimed,
 		Label:      "Monitoring",
 	}
 
-	got := session.tuiSession()
+	got := session.tuiSession(false)
 	if got.Kind != "Timed session" {
 		t.Fatalf("kind = %q, want Timed session", got.Kind)
 	}
 	if !got.AutoStopAt.Equal(autoStopAt) {
 		t.Fatalf("auto stop = %v, want %v", got.AutoStopAt, autoStopAt)
 	}
+	if !got.StartedAt.Equal(startedAt) {
+		t.Fatalf("started at = %v, want %v", got.StartedAt, startedAt)
+	}
 	if got.Label != "Monitoring" {
 		t.Fatalf("label = %q, want Monitoring", got.Label)
+	}
+	if got.WatchMode {
+		t.Fatal("watch mode should be false")
 	}
 }
 

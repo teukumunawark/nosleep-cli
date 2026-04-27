@@ -19,6 +19,7 @@ const (
 )
 
 var (
+	// Colors
 	accentColor = lipgloss.Color("214")
 	greenColor  = lipgloss.Color("42")
 	yellowColor = lipgloss.Color("220")
@@ -26,6 +27,7 @@ var (
 	mutedColor  = lipgloss.Color("244")
 	whiteColor  = lipgloss.Color("15")
 
+	// Styles
 	cardStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("8")).
@@ -73,11 +75,20 @@ var keys = keyMap{
 	),
 }
 
+var watchKeys = keyMap{
+	Quit: key.NewBinding(
+		key.WithKeys("q", "esc", "ctrl+c"),
+		key.WithHelp("q", "close monitor"),
+	),
+}
+
 type Session struct {
 	Duration   time.Duration
+	StartedAt  time.Time
 	AutoStopAt time.Time
 	Kind       string
 	Label      string
+	WatchMode  bool
 }
 
 type model struct {
@@ -92,7 +103,9 @@ type model struct {
 	now        time.Time
 	quitting   bool
 	done       bool
+	watchMode  bool
 
+	// Components
 	spinner  spinner.Model
 	progress progress.Model
 	help     help.Model
@@ -104,7 +117,12 @@ func initialModel(session Session) model {
 	if kind == "" {
 		kind = "Open-ended"
 	}
-	startedAt := now
+	
+	startedAt := session.StartedAt
+	if startedAt.IsZero() {
+		startedAt = now
+	}
+	
 	autoStopAt := session.AutoStopAt
 	duration := session.Duration
 	if !autoStopAt.IsZero() {
@@ -126,12 +144,13 @@ func initialModel(session Session) model {
 		kind:       kind,
 		label:      session.Label,
 		indefinite: autoStopAt.IsZero() && duration == 0,
-		startedAt:  now,
+		startedAt:  startedAt,
 		autoStopAt: autoStopAt,
 		now:        now,
 		spinner:    s,
 		progress:   p,
 		help:       help.New(),
+		watchMode:  session.WatchMode,
 	}
 }
 
@@ -154,7 +173,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		if key.Matches(msg, keys.Quit) {
+		k := keys
+		if m.watchMode {
+			k = watchKeys
+		}
+		if key.Matches(msg, k.Quit) {
 			m.quitting = true
 			return m, tea.Quit
 		}
@@ -200,12 +223,19 @@ func (m model) View() string {
 }
 
 func (m model) dashboardView() string {
+	// Header
+	headerTitle := "Active Session"
+	if m.watchMode {
+		headerTitle = "Watching Session"
+	}
+
 	header := lipgloss.JoinHorizontal(lipgloss.Center,
 		m.spinner.View(),
 		kickerStyle.Render("NOSLEEP"),
-		titleStyle.Render("Active Session"),
+		titleStyle.Render(headerTitle),
 	)
 
+	// Session Info Rows
 	rows := []string{
 		m.renderRow("Mode", m.kind),
 		m.renderRow("Label", m.displayLabel()),
@@ -222,7 +252,12 @@ func (m model) dashboardView() string {
 		rows = append(rows, m.renderRow("Auto-stop", "None"))
 	}
 
-	helpView := helpStyle.Render(m.help.View(keys))
+	// Help
+	activeKeys := keys
+	if m.watchMode {
+		activeKeys = watchKeys
+	}
+	helpView := helpStyle.Render(m.help.View(activeKeys))
 
 	body := lipgloss.JoinVertical(lipgloss.Left,
 		header,
