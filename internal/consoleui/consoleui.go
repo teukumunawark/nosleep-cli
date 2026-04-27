@@ -7,12 +7,51 @@ import (
 
 	coresession "nosleep-cli/internal/session"
 	"nosleep-cli/internal/timer"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 type outputRow struct {
 	Label string
 	Value string
 }
+
+var (
+	accentColor = lipgloss.Color("214")
+	greenColor  = lipgloss.Color("42")
+	mutedColor  = lipgloss.Color("244")
+	whiteColor  = lipgloss.Color("15")
+
+	cardStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("8")).
+			Padding(1, 4).
+			Width(60)
+
+	titleStyle = lipgloss.NewStyle().
+			Foreground(whiteColor).
+			Bold(true)
+
+	kickerStyle = lipgloss.NewStyle().
+			Foreground(accentColor).
+			Bold(true).
+			MarginRight(1)
+
+	labelStyle = lipgloss.NewStyle().
+			Foreground(mutedColor).
+			Width(12)
+
+	valueStyle = lipgloss.NewStyle().
+			Foreground(whiteColor)
+
+	activeValueStyle = lipgloss.NewStyle().
+			Foreground(greenColor).
+			Bold(true)
+
+	footerStyle = lipgloss.NewStyle().
+			Foreground(mutedColor).
+			MarginTop(1)
+)
 
 func PrintAlreadyRunning(state coresession.State) {
 	fmt.Print(AlreadyRunningOutput(state, time.Now()))
@@ -101,37 +140,52 @@ func StoppedOutput() string {
 }
 
 func RenderOutput(title string, rows []outputRow, commands []string, notes []string) string {
-	var b strings.Builder
-	b.WriteString(title)
-	b.WriteString("\n")
+	header := lipgloss.JoinHorizontal(lipgloss.Center,
+		kickerStyle.Render("NOSLEEP"),
+		titleStyle.Render(title),
+	)
 
-	if len(rows) > 0 {
-		b.WriteString("\n")
-		for _, row := range rows {
-			b.WriteString(fmt.Sprintf("  %-10s %s\n", row.Label, row.Value))
-		}
+	var rowStrs []string
+	for _, row := range rows {
+		rowStrs = append(rowStrs, renderRow(row.Label, row.Value))
 	}
 
-	if len(notes) > 0 {
-		b.WriteString("\n")
-		for _, note := range notes {
-			b.WriteString("  ")
-			b.WriteString(note)
-			b.WriteString("\n")
-		}
+	var footerLines []string
+	for _, note := range notes {
+		footerLines = append(footerLines, note)
 	}
-
 	if len(commands) > 0 {
-		b.WriteString("\n")
-		b.WriteString("Next:\n")
-		for _, command := range commands {
-			b.WriteString("  ")
-			b.WriteString(command)
-			b.WriteString("\n")
+		if len(footerLines) > 0 {
+			footerLines = append(footerLines, "")
+		}
+		footerLines = append(footerLines, "Next:")
+		for _, cmd := range commands {
+			footerLines = append(footerLines, "  "+cmd)
 		}
 	}
 
-	return b.String()
+	var parts []string
+	parts = append(parts, header, "")
+	if len(rowStrs) > 0 {
+		parts = append(parts, strings.Join(rowStrs, "\n"))
+	}
+	if len(footerLines) > 0 {
+		parts = append(parts, footerStyle.Render(strings.Join(footerLines, "\n")))
+	}
+
+	body := lipgloss.JoinVertical(lipgloss.Left, parts...)
+	return cardStyle.Render(body) + "\n"
+}
+
+func renderRow(label, value string) string {
+	vStyle := valueStyle
+	if strings.Contains(value, "Active") || value == "Already running" {
+		vStyle = activeValueStyle
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top,
+		labelStyle.Render(label),
+		vStyle.Render(value),
+	)
 }
 
 func FormatClock(t time.Time, reference time.Time) string {

@@ -11,13 +11,15 @@ import (
 func TestBackgroundStartedOutput(t *testing.T) {
 	startedAt := time.Date(2026, 4, 24, 10, 27, 40, 0, time.Local)
 	autoStopAt := startedAt.Add(time.Minute)
-
+    
 	got := BackgroundStartedOutput(coresession.ModeTimed, "generic", &autoStopAt, startedAt)
 	for _, want := range []string{
+		"NOSLEEP",
 		"NoSleep started",
-		"Status     Active in background",
-		"Mode       Timed session",
-		"Auto-stop  10:28:40",
+		"Active in background",
+		"Timed session",
+		"Auto-stop",
+		"10:28:40",
 		"Next:",
 		"nosleep status",
 		"nosleep stop",
@@ -43,12 +45,17 @@ func TestStatusOutput(t *testing.T) {
 
 	got := StatusOutput(state, now)
 	for _, want := range []string{
+		"NOSLEEP",
 		"NoSleep status",
-		"Status     Active",
-		"Elapsed    00:00:20",
-		"Remaining  00:00:40",
-		"Awake      System + Display",
-		"PID        26060",
+		"Active",
+		"Elapsed",
+		"00:00:20",
+		"Remaining",
+		"00:00:40",
+		"Awake",
+		"System + Display",
+		"PID",
+		"26060",
 		"nosleep stop",
 	} {
 		if !strings.Contains(got, want) {
@@ -60,6 +67,7 @@ func TestStatusOutput(t *testing.T) {
 func TestStoppedOutput(t *testing.T) {
 	got := StoppedOutput()
 	for _, want := range []string{
+		"NOSLEEP",
 		"NoSleep stopped",
 		"Normal Windows sleep behavior restored.",
 	} {
