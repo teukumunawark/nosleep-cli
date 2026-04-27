@@ -5,34 +5,53 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
-const animationFPS = 4
+const (
+	animationFPS = 10
+	maxWidth     = 80
+)
 
 var (
-	appStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.NoColor{})
+	accentColor = lipgloss.Color("214")
+	greenColor  = lipgloss.Color("42")
+	yellowColor = lipgloss.Color("220")
+	redColor    = lipgloss.Color("196")
+	mutedColor  = lipgloss.Color("244")
+	whiteColor  = lipgloss.Color("15")
+
+	appStyle = lipgloss.NewStyle().Padding(1, 2)
 
 	cardStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("8")).
-			Padding(1, 2)
-
-	titleStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("15")).
-			Bold(true)
+			Padding(1, 4).
+			Width(60)
 
 	kickerStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("214")).
+			Foreground(accentColor).
+			Bold(true).
+			MarginRight(1)
+
+	titleStyle = lipgloss.NewStyle().
+			Foreground(whiteColor).
 			Bold(true)
 
-	mutedStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("245"))
+	labelStyle = lipgloss.NewStyle().
+			Foreground(mutedColor).
+			Width(12)
 
-	footerStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("244"))
+	valueStyle = lipgloss.NewStyle().
+			Foreground(whiteColor)
+
+	helpStyle = lipgloss.NewStyle().
+			MarginTop(1)
 )
 
 type tickMsg time.Time
@@ -42,6 +61,25 @@ const (
 	SessionTimed     = "Timed session"
 	SessionUntil     = "Until time"
 )
+
+type keyMap struct {
+	Quit key.Binding
+}
+
+func (k keyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Quit}
+}
+
+func (k keyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{{k.Quit}}
+}
+
+var keys = keyMap{
+	Quit: key.NewBinding(
+		key.WithKeys("q", "esc", "ctrl+c"),
+		key.WithHelp("q", "stop nosleep"),
+	),
+}
 
 type Session struct {
 	Duration   time.Duration
@@ -62,7 +100,10 @@ type model struct {
 	now        time.Time
 	quitting   bool
 	done       bool
-	frame      int
+
+	spinner  spinner.Model
+	progress progress.Model
+	help     help.Model
 }
 
 func initialModel(session Session) model {
@@ -78,6 +119,16 @@ func initialModel(session Session) model {
 		duration = autoStopAt.Sub(startedAt)
 	}
 
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(accentColor)
+
+	p := progress.New(
+		progress.WithDefaultGradient(),
+		progress.WithoutPercentage(),
+		progress.WithWidth(40),
+	)
+
 	return model{
 		duration:   duration,
 		kind:       kind,
@@ -86,11 +137,14 @@ func initialModel(session Session) model {
 		startedAt:  now,
 		autoStopAt: autoStopAt,
 		now:        now,
+		spinner:    s,
+		progress:   p,
+		help:       help.New(),
 	}
 }
 
 func (m model) Init() tea.Cmd {
-	return tickCmd()
+	return tea.Batch(tickCmd(), m.spinner.Tick)
 }
 
 func tickCmd() tea.Cmd {
@@ -104,18 +158,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.progress.Width = minInt(msg.Width-20, 52)
 		return m, nil
 
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q", "esc":
+		if key.Matches(msg, keys.Quit) {
 			m.quitting = true
 			return m, tea.Quit
 		}
 
 	case tickMsg:
 		m.now = time.Time(msg)
-		m.frame++
 
 		if !m.indefinite && m.remaining() <= 0 {
 			m.done = true
@@ -123,6 +176,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		return m, tickCmd()
+
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
+
+	case progress.FrameMsg:
+		newModel, cmd := m.progress.Update(msg)
+		if pm, ok := newModel.(progress.Model); ok {
+			m.progress = pm
+		}
+		return m, cmd
 	}
 
 	return m, nil
@@ -137,70 +202,57 @@ func (m model) View() string {
 		return "Loading..."
 	}
 
-	if m.width < 36 || m.height < 10 {
-		return appStyle.Width(m.width).Height(m.height).Render(m.compactView())
-	}
+	content := m.dashboardView()
 
-	contentWidth := minInt(maxInt(32, m.width-4), 72)
-	body := m.normalView(contentWidth)
-
-	return appStyle.Width(m.width).Height(m.height).Render(
-		lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, body),
-	)
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, content)
 }
 
-func (m model) compactView() string {
-	lines := []string{
-		"NOSLEEP",
-		m.displayTime(),
-	}
-
-	if m.width >= 20 {
-		lines = append(lines, trimToWidth("Mode: "+m.kind, m.width))
-	}
-
-	if m.height >= 5 {
-		lines = append(lines, trimToWidth(m.compactMeta(), m.width))
-	}
-
-	return strings.Join(lines, "\n")
-}
-
-func (m model) normalView(width int) string {
-	header := lipgloss.JoinVertical(
-		lipgloss.Left,
+func (m model) dashboardView() string {
+	header := lipgloss.JoinHorizontal(lipgloss.Center,
+		m.spinner.View(),
 		kickerStyle.Render("NOSLEEP"),
-		titleStyle.Render("Preventing sleep during passive work"),
+		titleStyle.Render("Active Session"),
 	)
 
 	rows := []string{
-		m.row("Mode", m.kind),
-		m.row("Started", m.startedAt.Format("15:04:05")),
-		m.row("Elapsed", formatDuration(m.elapsed())),
+		m.renderRow("Mode", m.kind),
+		m.renderRow("Label", m.displayLabel()),
+		m.renderRow("Started", m.startedAt.Format("15:04:05")),
+		m.renderRow("Elapsed", formatDuration(m.elapsed())),
 	}
+
 	if !m.indefinite {
-		rows = append(rows, m.row("Remaining", formatDuration(m.remaining())))
+		rows = append(rows, m.renderRow("Remaining", m.remainingStyled()))
+		rows = append(rows, "")
+		rows = append(rows, m.progress.ViewAs(m.percentDone()))
+	} else {
+		rows = append(rows, m.renderRow("Auto-stop", "None"))
 	}
-	rows = append(rows,
-		m.row("Auto-stop", m.autoStopText()),
-		m.row("Awake", "System + Display"),
+
+	helpView := helpStyle.Render(m.help.View(keys))
+
+	body := lipgloss.JoinVertical(lipgloss.Left,
+		header,
+		"",
+		strings.Join(rows, "\n"),
+		helpView,
 	)
 
-	if !m.isGenericLabel() {
-		rows = append(rows, m.row("Label", m.label))
+	return cardStyle.Render(body)
+}
+
+func (m model) renderRow(label, value string) string {
+	return lipgloss.JoinHorizontal(lipgloss.Top,
+		labelStyle.Render(label),
+		valueStyle.Render(value),
+	)
+}
+
+func (m model) displayLabel() string {
+	if m.isGenericLabel() {
+		return "Default"
 	}
-
-	footerLines := []string{}
-	if m.indefinite {
-		footerLines = append(footerLines, "Tip: use --duration 1h or --until 18:00")
-	}
-	footerLines = append(footerLines, "Press Q, ESC, or CTRL+C to stop")
-
-	parts := []string{header, "", strings.Join(rows, "\n"), "", footerStyle.Render(strings.Join(footerLines, "\n"))}
-
-	content := lipgloss.JoinVertical(lipgloss.Left, parts...)
-
-	return cardStyle.Width(width).Render(content)
+	return m.label
 }
 
 func (m model) elapsed() time.Duration {
@@ -222,40 +274,37 @@ func (m model) remaining() time.Duration {
 	return remaining
 }
 
-func (m model) displayTime() string {
-	if m.indefinite {
-		return formatDuration(m.elapsed())
+func (m model) percentDone() float64 {
+	if m.indefinite || m.duration == 0 {
+		return 0
 	}
-	return formatDuration(m.remaining())
+	return float64(m.elapsed()) / float64(m.duration)
 }
 
-func (m model) compactMeta() string {
-	return m.kind
-}
+func (m model) remainingStyled() string {
+	rem := m.remaining()
+	remStr := formatDuration(rem)
 
-func (m model) autoStopText() string {
-	if m.autoStopAt.IsZero() {
-		return "None"
-	}
-	if sameDate(m.startedAt, m.autoStopAt) {
-		return m.autoStopAt.Format("15:04:05")
-	}
-	return m.autoStopAt.Format("2006-01-02 15:04:05")
-}
+	percent := 1.0 - m.percentDone()
 
-func (m model) row(label, value string) string {
-	return fmt.Sprintf("%-11s %s", label, value)
+	style := lipgloss.NewStyle().Bold(true)
+	if percent < 0.2 {
+		style = style.Foreground(redColor)
+	} else if percent < 0.5 {
+		style = style.Foreground(yellowColor)
+	} else {
+		style = style.Foreground(greenColor)
+	}
+
+	return style.Render(remStr)
 }
 
 func (m model) isGenericLabel() bool {
-	return strings.TrimSpace(strings.ToLower(m.label)) == "" || strings.TrimSpace(strings.ToLower(m.label)) == "generic"
+	l := strings.TrimSpace(strings.ToLower(m.label))
+	return l == "" || l == "generic"
 }
 
 func formatDuration(d time.Duration) string {
-	if d < 0 {
-		d = 0
-	}
-
 	d = d.Round(time.Second)
 	h := d / time.Hour
 	d -= h * time.Hour
@@ -266,39 +315,11 @@ func formatDuration(d time.Duration) string {
 	return fmt.Sprintf("%02d:%02d:%02d", h, m, s)
 }
 
-func trimToWidth(s string, width int) string {
-	if width <= 0 {
-		return ""
-	}
-
-	runes := []rune(s)
-	if len(runes) <= width {
-		return s
-	}
-	if width <= 3 {
-		return string(runes[:width])
-	}
-	return string(runes[:width-3]) + "..."
-}
-
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 func minInt(a, b int) int {
 	if a < b {
 		return a
 	}
 	return b
-}
-
-func sameDate(a, b time.Time) bool {
-	ay, am, ad := a.Date()
-	by, bm, bd := b.Date()
-	return ay == by && am == bm && ad == bd
 }
 
 func Start(session Session) error {
