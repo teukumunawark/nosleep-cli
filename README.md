@@ -6,14 +6,10 @@ display awake without moving the mouse, pressing keys, or simulating user input.
 
 ## Install
 
-Download `install.ps1` from the latest release:
-
-https://github.com/teukumunawark/nosleep-cli/releases/latest
-
-Review the script, then run:
+Run the following command in PowerShell to download and install the latest release automatically:
 
 ```powershell
-.\install.ps1 -AddToPath
+irm https://raw.githubusercontent.com/teukumunawark/nosleep-cli/main/install.ps1 | iex
 ```
 
 The installer:
@@ -21,9 +17,9 @@ The installer:
 - downloads the binary for the current Windows architecture
 - verifies the binary with the release SHA-256 checksum
 - installs `nosleep.exe` to `%LOCALAPPDATA%\Programs\nosleep`
-- appends the install directory to the User `Path` only when `-AddToPath` is set
+- appends the install directory to the User `Path`
 
-Open a new terminal after changing `Path`, then verify the command location:
+Open a new terminal after installation, then verify the command location:
 
 ```powershell
 where.exe nosleep
