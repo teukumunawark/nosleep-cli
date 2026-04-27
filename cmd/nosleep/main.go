@@ -145,7 +145,13 @@ func runBackground(session startSession) error {
 		return fmt.Errorf("start background process: %w", err)
 	}
 
-	state := session.state(cmd.Process.Pid, startedAt, executable)
+	processStartedAt, err := coresession.ProcessStartedAt(cmd.Process.Pid)
+	if err != nil {
+		_ = cmd.Process.Kill()
+		return fmt.Errorf("query background process start time: %w", err)
+	}
+
+	state := session.state(cmd.Process.Pid, startedAt, processStartedAt, executable)
 	if err := store.Write(state); err != nil {
 		_ = cmd.Process.Kill()
 		return err
@@ -186,14 +192,20 @@ func runBackgroundWorker(startedAtStr, autoStopAtStr, mode, label string) error 
 		return err
 	}
 
+	processStartedAt, err := coresession.ProcessStartedAt(os.Getpid())
+	if err != nil {
+		return fmt.Errorf("query background worker process start time: %w", err)
+	}
+
 	state := coresession.State{
-		PID:        os.Getpid(),
-		StartedAt:  startedAt,
-		Mode:       mode,
-		AwakeMode:  coresession.AwakeModeSystemDisplay,
-		AutoStopAt: autoStopAt,
-		Executable: executable,
-		Label:      label,
+		PID:              os.Getpid(),
+		StartedAt:        startedAt,
+		ProcessStartedAt: &processStartedAt,
+		Mode:             mode,
+		AwakeMode:        coresession.AwakeModeSystemDisplay,
+		AutoStopAt:       autoStopAt,
+		Executable:       executable,
+		Label:            label,
 	}
 	if err := store.Write(state); err != nil {
 		return err
@@ -268,7 +280,7 @@ func runStop() error {
 		return nil
 	}
 
-	if err := coresession.KillMatchingProcess(state.PID, state.Executable); err != nil && !errors.Is(err, coresession.ErrProcessNotRunning) {
+	if err := coresession.KillMatchingProcess(state.PID, state.Executable, state.ProcessStartedAt); err != nil && !errors.Is(err, coresession.ErrProcessNotRunning) {
 		return err
 	}
 	if err := store.Remove(); err != nil {
@@ -282,13 +294,19 @@ func runStop() error {
 func activeState(store coresession.Store) (coresession.State, bool, error) {
 	state, ok, err := store.Read()
 	if err != nil {
+		if errors.Is(err, coresession.ErrInvalidState) {
+			if removeErr := store.Remove(); removeErr != nil {
+				return coresession.State{}, false, removeErr
+			}
+			return coresession.State{}, false, nil
+		}
 		return coresession.State{}, false, err
 	}
 	if !ok {
 		return coresession.State{}, false, nil
 	}
 
-	matches, err := coresession.ProcessMatches(state.PID, state.Executable)
+	matches, err := coresession.ProcessMatches(state.PID, state.Executable, state.ProcessStartedAt)
 	if err != nil {
 		return coresession.State{}, false, err
 	}
@@ -362,15 +380,16 @@ func (s startSession) backgroundArgs(startedAt time.Time) []string {
 	return args
 }
 
-func (s startSession) state(pid int, startedAt time.Time, executable string) coresession.State {
+func (s startSession) state(pid int, startedAt time.Time, processStartedAt time.Time, executable string) coresession.State {
 	return coresession.State{
-		PID:        pid,
-		StartedAt:  startedAt,
-		Mode:       s.Mode,
-		AwakeMode:  coresession.AwakeModeSystemDisplay,
-		AutoStopAt: s.AutoStopAt,
-		Executable: executable,
-		Label:      s.Label,
+		PID:              pid,
+		StartedAt:        startedAt,
+		ProcessStartedAt: &processStartedAt,
+		Mode:             s.Mode,
+		AwakeMode:        coresession.AwakeModeSystemDisplay,
+		AutoStopAt:       s.AutoStopAt,
+		Executable:       executable,
+		Label:            s.Label,
 	}
 }
 

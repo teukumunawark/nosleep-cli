@@ -133,12 +133,14 @@ func TestBackgroundStartedOutput(t *testing.T) {
 func TestStatusOutput(t *testing.T) {
 	now := time.Date(2026, 4, 24, 10, 28, 0, 0, time.Local)
 	autoStopAt := now.Add(40 * time.Second)
+	processStartedAt := now.Add(-21 * time.Second)
 	state := coresession.State{
-		PID:        26060,
-		StartedAt:  now.Add(-20 * time.Second),
-		Mode:       coresession.ModeTimed,
-		AwakeMode:  coresession.AwakeModeSystemDisplay,
-		AutoStopAt: &autoStopAt,
+		PID:              26060,
+		StartedAt:        now.Add(-20 * time.Second),
+		ProcessStartedAt: &processStartedAt,
+		Mode:             coresession.ModeTimed,
+		AwakeMode:        coresession.AwakeModeSystemDisplay,
+		AutoStopAt:       &autoStopAt,
 	}
 
 	got := statusOutput(state, now)

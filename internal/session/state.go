@@ -17,14 +17,17 @@ const (
 	AwakeModeSystemDisplay = "system_display"
 )
 
+var ErrInvalidState = errors.New("invalid state")
+
 type State struct {
-	PID        int        `json:"pid"`
-	StartedAt  time.Time  `json:"started_at"`
-	Mode       string     `json:"mode"`
-	AwakeMode  string     `json:"awake_mode"`
-	AutoStopAt *time.Time `json:"auto_stop_at,omitempty"`
-	Executable string     `json:"executable"`
-	Label      string     `json:"label,omitempty"`
+	PID              int        `json:"pid"`
+	StartedAt        time.Time  `json:"started_at"`
+	ProcessStartedAt *time.Time `json:"process_started_at"`
+	Mode             string     `json:"mode"`
+	AwakeMode        string     `json:"awake_mode"`
+	AutoStopAt       *time.Time `json:"auto_stop_at,omitempty"`
+	Executable       string     `json:"executable"`
+	Label            string     `json:"label,omitempty"`
 }
 
 type Store struct {
@@ -73,6 +76,9 @@ func (s Store) Read() (State, bool, error) {
 	if err := json.Unmarshal(data, &state); err != nil {
 		return State{}, false, fmt.Errorf("decode state file: %w", err)
 	}
+	if err := state.Validate(); err != nil {
+		return State{}, false, err
+	}
 
 	return state, true, nil
 }
@@ -88,9 +94,30 @@ func (s Store) Write(state State) error {
 	}
 	data = append(data, '\n')
 
-	if err := os.WriteFile(s.path, data, 0o600); err != nil {
-		return fmt.Errorf("write state file: %w", err)
+	tmp, err := os.CreateTemp(filepath.Dir(s.path), "state-*.tmp")
+	if err != nil {
+		return fmt.Errorf("create temp state file: %w", err)
 	}
+	tmpPath := tmp.Name()
+	removeTmp := true
+	defer func() {
+		if removeTmp {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("write temp state file: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("close temp state file: %w", err)
+	}
+
+	if err := os.Rename(tmpPath, s.path); err != nil {
+		return fmt.Errorf("commit state file: %w", err)
+	}
+	removeTmp = false
 
 	return nil
 }
@@ -120,4 +147,28 @@ func AwakeModeLabel(mode string) string {
 	default:
 		return "System + Display"
 	}
+}
+
+func (s State) Validate() error {
+	if s.PID <= 0 {
+		return fmt.Errorf("%w: missing pid", ErrInvalidState)
+	}
+	if s.StartedAt.IsZero() {
+		return fmt.Errorf("%w: missing start time", ErrInvalidState)
+	}
+	if s.ProcessStartedAt == nil || s.ProcessStartedAt.IsZero() {
+		return fmt.Errorf("%w: missing process start time", ErrInvalidState)
+	}
+	switch s.Mode {
+	case ModeOpenEnded, ModeTimed, ModeUntil:
+	default:
+		return fmt.Errorf("%w: unknown mode %q", ErrInvalidState, s.Mode)
+	}
+	if s.AwakeMode != AwakeModeSystemDisplay {
+		return fmt.Errorf("%w: unknown awake mode %q", ErrInvalidState, s.AwakeMode)
+	}
+	if s.Executable == "" {
+		return fmt.Errorf("%w: missing executable", ErrInvalidState)
+	}
+	return nil
 }
