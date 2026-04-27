@@ -1,9 +1,10 @@
 package tui
 
 import (
-	"fmt"
 	"strings"
 	"time"
+
+	"nosleep-cli/internal/timer"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -15,7 +16,6 @@ import (
 
 const (
 	animationFPS = 10
-	maxWidth     = 80
 )
 
 var (
@@ -25,8 +25,6 @@ var (
 	redColor    = lipgloss.Color("196")
 	mutedColor  = lipgloss.Color("244")
 	whiteColor  = lipgloss.Color("15")
-
-	appStyle = lipgloss.NewStyle().Padding(1, 2)
 
 	cardStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
@@ -55,12 +53,6 @@ var (
 )
 
 type tickMsg time.Time
-
-const (
-	SessionOpenEnded = "Open-ended"
-	SessionTimed     = "Timed session"
-	SessionUntil     = "Until time"
-)
 
 type keyMap struct {
 	Quit key.Binding
@@ -110,7 +102,7 @@ func initialModel(session Session) model {
 	now := time.Now()
 	kind := session.Kind
 	if kind == "" {
-		kind = SessionOpenEnded
+		kind = "Open-ended"
 	}
 	startedAt := now
 	autoStopAt := session.AutoStopAt
@@ -218,10 +210,11 @@ func (m model) dashboardView() string {
 		m.renderRow("Mode", m.kind),
 		m.renderRow("Label", m.displayLabel()),
 		m.renderRow("Started", m.startedAt.Format("15:04:05")),
-		m.renderRow("Elapsed", formatDuration(m.elapsed())),
+		m.renderRow("Elapsed", timer.FormatDuration(m.elapsed())),
 	}
 
 	if !m.indefinite {
+		rows = append(rows, m.renderRow("Auto-stop", m.autoStopText()))
 		rows = append(rows, m.renderRow("Remaining", m.remainingStyled()))
 		rows = append(rows, "")
 		rows = append(rows, m.progress.ViewAs(m.percentDone()))
@@ -283,7 +276,7 @@ func (m model) percentDone() float64 {
 
 func (m model) remainingStyled() string {
 	rem := m.remaining()
-	remStr := formatDuration(rem)
+	remStr := timer.FormatDuration(rem)
 
 	percent := 1.0 - m.percentDone()
 
@@ -299,20 +292,19 @@ func (m model) remainingStyled() string {
 	return style.Render(remStr)
 }
 
+func (m model) autoStopText() string {
+	if m.autoStopAt.IsZero() {
+		return "None"
+	}
+	if timer.SameDate(m.startedAt, m.autoStopAt) {
+		return m.autoStopAt.Format("15:04:05")
+	}
+	return m.autoStopAt.Format("2006-01-02 15:04:05")
+}
+
 func (m model) isGenericLabel() bool {
 	l := strings.TrimSpace(strings.ToLower(m.label))
 	return l == "" || l == "generic"
-}
-
-func formatDuration(d time.Duration) string {
-	d = d.Round(time.Second)
-	h := d / time.Hour
-	d -= h * time.Hour
-	m := d / time.Minute
-	d -= m * time.Minute
-	s := d / time.Second
-
-	return fmt.Sprintf("%02d:%02d:%02d", h, m, s)
 }
 
 func minInt(a, b int) int {

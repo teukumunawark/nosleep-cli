@@ -422,6 +422,9 @@ func backgroundStartedOutput(session startSession, startedAt time.Time) string {
 		{Label: "Status", Value: "Active in background"},
 		{Label: "Mode", Value: coresession.ModeLabel(session.Mode)},
 	}
+	if session.Label != "" && session.Label != "generic" {
+		rows = append(rows, outputRow{Label: "Label", Value: session.Label})
+	}
 	if session.AutoStopAt == nil {
 		rows = append(rows, outputRow{Label: "Auto-stop", Value: "None"})
 	} else {
@@ -435,6 +438,9 @@ func alreadyRunningOutput(state coresession.State, now time.Time) string {
 	rows := []outputRow{
 		{Label: "Status", Value: "Already running"},
 		{Label: "Mode", Value: coresession.ModeLabel(state.Mode)},
+	}
+	if state.Label != "" && state.Label != "generic" {
+		rows = append(rows, outputRow{Label: "Label", Value: state.Label})
 	}
 	if state.AutoStopAt != nil {
 		rows = append(rows, outputRow{Label: "Auto-stop", Value: formatClock(*state.AutoStopAt, now)})
@@ -452,12 +458,17 @@ func statusOutput(state coresession.State, now time.Time) string {
 	rows := []outputRow{
 		{Label: "Status", Value: "Active"},
 		{Label: "Mode", Value: coresession.ModeLabel(state.Mode)},
-		{Label: "Started", Value: formatClock(state.StartedAt, now)},
-		{Label: "Elapsed", Value: formatDuration(now.Sub(state.StartedAt))},
 	}
+	if state.Label != "" && state.Label != "generic" {
+		rows = append(rows, outputRow{Label: "Label", Value: state.Label})
+	}
+	rows = append(rows,
+		outputRow{Label: "Started", Value: formatClock(state.StartedAt, now)},
+		outputRow{Label: "Elapsed", Value: timer.FormatDuration(now.Sub(state.StartedAt))},
+	)
 	if state.AutoStopAt != nil {
 		rows = append(rows,
-			outputRow{Label: "Remaining", Value: formatDuration(state.AutoStopAt.Sub(now))},
+			outputRow{Label: "Remaining", Value: timer.FormatDuration(state.AutoStopAt.Sub(now))},
 			outputRow{Label: "Auto-stop", Value: formatClock(*state.AutoStopAt, now)},
 		)
 	} else {
@@ -515,31 +526,10 @@ func renderOutput(title string, rows []outputRow, commands []string, notes []str
 }
 
 func formatClock(t time.Time, reference time.Time) string {
-	if sameDate(t, reference) {
+	if timer.SameDate(t, reference) {
 		return t.Format("15:04:05")
 	}
 	return t.Format("2006-01-02 15:04:05")
-}
-
-func formatDuration(d time.Duration) string {
-	if d < 0 {
-		d = 0
-	}
-
-	d = d.Round(time.Second)
-	h := d / time.Hour
-	d -= h * time.Hour
-	m := d / time.Minute
-	d -= m * time.Minute
-	s := d / time.Second
-
-	return fmt.Sprintf("%02d:%02d:%02d", h, m, s)
-}
-
-func sameDate(a, b time.Time) bool {
-	ay, am, ad := a.Date()
-	by, bm, bd := b.Date()
-	return ay == by && am == bm && ad == bd
 }
 
 func printUsage() {

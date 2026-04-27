@@ -95,6 +95,27 @@ func ParseUntil(now time.Time, value string) (time.Time, error) {
 	return target, nil
 }
 
+func FormatDuration(d time.Duration) string {
+	if d < 0 {
+		d = 0
+	}
+
+	d = d.Round(time.Second)
+	h := d / time.Hour
+	d -= h * time.Hour
+	m := d / time.Minute
+	d -= m * time.Minute
+	s := d / time.Second
+
+	return fmt.Sprintf("%02d:%02d:%02d", h, m, s)
+}
+
+func SameDate(a, b time.Time) bool {
+	ay, am, ad := a.Date()
+	by, bm, bd := b.Date()
+	return ay == by && am == bm && ad == bd
+}
+
 func parseClockPart(value string, minLen, maxLen int) (int, error) {
 	if len(value) < minLen || len(value) > maxLen {
 		return 0, fmt.Errorf("expected %d-%d digits", minLen, maxLen)

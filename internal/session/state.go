@@ -59,10 +59,6 @@ func DefaultStatePath() (string, error) {
 	return filepath.Join(base, "NoSleepCLI", "state.json"), nil
 }
 
-func (s Store) Path() string {
-	return s.path
-}
-
 func (s Store) Read() (State, bool, error) {
 	data, err := os.ReadFile(s.path)
 	if err != nil {
