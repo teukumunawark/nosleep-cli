@@ -6,14 +6,10 @@ display awake without moving the mouse, pressing keys, or simulating user input.
 
 ## Install
 
-Download `install.ps1` from the latest release:
-
-https://github.com/teukumunawark/nosleep-cli/releases/latest
-
-Review the script, then run:
+Run the following command in PowerShell to download and install the latest release automatically:
 
 ```powershell
-.\install.ps1 -AddToPath
+irm https://raw.githubusercontent.com/teukumunawark/nosleep-cli/main/install.ps1 | iex
 ```
 
 The installer:
@@ -21,9 +17,9 @@ The installer:
 - downloads the binary for the current Windows architecture
 - verifies the binary with the release SHA-256 checksum
 - installs `nosleep.exe` to `%LOCALAPPDATA%\Programs\nosleep`
-- appends the install directory to the User `Path` only when `-AddToPath` is set
+- appends the install directory to the User `Path`
 
-Open a new terminal after changing `Path`, then verify the command location:
+Open a new terminal after installation, then verify the command location:
 
 ```powershell
 where.exe nosleep
@@ -50,30 +46,50 @@ and verify it against `checksums.txt` from the same release.
 Start an open-ended session:
 
 ```powershell
-nosleep
+nosleep start
 ```
 
 Run for a fixed duration:
 
 ```powershell
-nosleep -duration 30m
-nosleep -duration 2h
+nosleep start --duration 30m
+nosleep start --duration 2h
+nosleep start --duration 1h30m
+```
+
+Run until a specific 24-hour time:
+
+```powershell
+nosleep start --until 17:30
+```
+
+Start in the background:
+
+```powershell
+nosleep start --background --duration 2h
+nosleep status
+nosleep stop
 ```
 
 Attach a label to the session:
 
 ```powershell
-nosleep -duration 45m -mode Monitoring
+nosleep start --duration 45m --mode Monitoring
 ```
 
 Stop the session with `q`, `esc`, or `Ctrl+C`.
 
 ## Options
 
-| Flag | Default | Description |
-| --- | --- | --- |
-| `-duration` | `0` | Session duration parsed by Go's `time.ParseDuration`, such as `30m`, `1h`, or `1h30m`. `0` runs until stopped. |
-| `-mode` | `generic` | Optional label displayed for the current session. |
+| Flag           | Default   | Description                                        |
+|----------------|-----------|----------------------------------------------------|
+| `--duration`   | none      | Session duration such as `30m`, `2h`, or `1h30m`.  |
+| `--until`      | none      | Auto-stop time in 24-hour format, such as `17:30`. |
+| `--background` | `false`   | Start NoSleep without keeping the terminal open.   |
+| `--mode`       | `generic` | Optional label displayed for the current session.  |
+
+For compatibility, `nosleep --duration 30m` still starts a foreground session.
+Only one background session is allowed at a time.
 
 ## Build
 
@@ -120,5 +136,7 @@ release.
 ```text
 cmd/nosleep/            CLI entry point
 internal/keepawake/     Windows keep-awake integration
+internal/session/       Background state and process management
+internal/timer/         Duration and until-time parsing
 internal/tui/           Terminal UI
 ```

@@ -1,7 +1,6 @@
 param(
     [string] $Version = "latest",
-    [string] $InstallDir = "$env:LOCALAPPDATA\Programs\nosleep",
-    [switch] $AddToPath
+    [string] $InstallDir = "$env:LOCALAPPDATA\Programs\nosleep"
 )
 
 $ErrorActionPreference = "Stop"
@@ -116,13 +115,8 @@ try {
     Write-Host "Installed $targetPath"
     Write-Host "Verified SHA-256: $actualHash"
 
-    if ($AddToPath) {
-        Add-UserPathEntry -PathEntry $InstallDir
-        Write-Host "Open a new terminal before running nosleep."
-    } else {
-        Write-Host "Add this directory to User Path to run nosleep from any terminal:"
-        Write-Host $InstallDir
-    }
+    Add-UserPathEntry -PathEntry $InstallDir
+    Write-Host "Installation complete! Open a new terminal before running nosleep." -ForegroundColor Green
 } finally {
     Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue
 }
