@@ -3,16 +3,12 @@ package session
 import (
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
-	"syscall"
 	"time"
+
+	"nosleep-cli/internal/fsutil"
 
 	"golang.org/x/sys/windows"
 )
-
-const processStatusStillActive = 259
 
 var ErrProcessNotRunning = errors.New("process is not running")
 
@@ -73,7 +69,7 @@ func processMatchesHandle(handle windows.Handle, executable string, startedAt *t
 		return false, nil
 	}
 
-	if strings.TrimSpace(executable) == "" {
+	if executable == "" {
 		return false, nil
 	}
 
@@ -81,7 +77,7 @@ func processMatchesHandle(handle windows.Handle, executable string, startedAt *t
 	if err != nil {
 		return false, fmt.Errorf("query process image path: %w", err)
 	}
-	if !samePath(imagePath, executable) {
+	if !fsutil.SamePath(imagePath, executable) {
 		return false, nil
 	}
 
@@ -111,20 +107,9 @@ func processImagePath(handle windows.Handle) (string, error) {
 func processIsRunning(handle windows.Handle) (bool, error) {
 	result, err := windows.WaitForSingleObject(handle, 0)
 	if err != nil {
-		if errors.Is(err, syscall.ERROR_ACCESS_DENIED) {
-			return processExitCodeIsRunning(handle)
-		}
 		return false, fmt.Errorf("wait for process: %w", err)
 	}
 	return result == uint32(windows.WAIT_TIMEOUT), nil
-}
-
-func processExitCodeIsRunning(handle windows.Handle) (bool, error) {
-	var exitCode uint32
-	if err := windows.GetExitCodeProcess(handle, &exitCode); err != nil {
-		return false, fmt.Errorf("get process exit code: %w", err)
-	}
-	return exitCode == processStatusStillActive, nil
 }
 
 func processStartedAt(handle windows.Handle) (time.Time, error) {
@@ -145,31 +130,6 @@ func openProcess(pid int, rights uint32) (windows.Handle, error) {
 		return 0, err
 	}
 	return handle, nil
-}
-
-func samePath(a, b string) bool {
-	return strings.EqualFold(normalizePath(a), normalizePath(b))
-}
-
-func normalizePath(path string) string {
-	path = strings.TrimSpace(path)
-	if path == "" {
-		return ""
-	}
-
-	abs, err := filepath.Abs(path)
-	if err == nil {
-		path = abs
-	}
-
-	resolved, err := filepath.EvalSymlinks(path)
-	if err == nil {
-		path = resolved
-	} else if errors.Is(err, os.ErrNotExist) {
-		path = filepath.Clean(path)
-	}
-
-	return filepath.Clean(path)
 }
 
 func sameProcessStart(a, b time.Time) bool {

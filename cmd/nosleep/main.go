@@ -37,7 +37,7 @@ func usagePrintf(format string, args ...any) {
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		_, _ = fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
@@ -235,11 +235,11 @@ func runBackgroundWorker(startedAtStr, autoStopAtStr, mode, label string) error 
 		return nil
 	}
 
-	timer := time.NewTimer(wait)
-	defer timer.Stop()
+	waitTimer := time.NewTimer(wait)
+	defer waitTimer.Stop()
 
 	select {
-	case <-timer.C:
+	case <-waitTimer.C:
 	case <-stop:
 	}
 
