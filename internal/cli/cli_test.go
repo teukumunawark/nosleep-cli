@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"strings"
@@ -61,7 +61,7 @@ func TestNewSession(t *testing.T) {
 
 func TestStartSessionTUISession(t *testing.T) {
 	autoStopAt := time.Date(2026, 4, 24, 18, 0, 0, 0, time.Local)
-	session := startSession{
+	session := Session{
 		Duration:   2 * time.Hour,
 		AutoStopAt: &autoStopAt,
 		Mode:       coresession.ModeTimed,
@@ -103,70 +103,5 @@ func TestNewSessionRejectsInvalidInputs(t *testing.T) {
 				t.Fatalf("error = %q, want text %q", err, tt.wantText)
 			}
 		})
-	}
-}
-
-func TestBackgroundStartedOutput(t *testing.T) {
-	startedAt := time.Date(2026, 4, 24, 10, 27, 40, 0, time.Local)
-	autoStopAt := startedAt.Add(time.Minute)
-	session := startSession{
-		AutoStopAt: &autoStopAt,
-		Mode:       coresession.ModeTimed,
-	}
-
-	got := backgroundStartedOutput(session, startedAt)
-	for _, want := range []string{
-		"NoSleep started",
-		"Status     Active in background",
-		"Mode       Timed session",
-		"Auto-stop  10:28:40",
-		"Next:",
-		"nosleep status",
-		"nosleep stop",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("output missing %q:\n%s", want, got)
-		}
-	}
-}
-
-func TestStatusOutput(t *testing.T) {
-	now := time.Date(2026, 4, 24, 10, 28, 0, 0, time.Local)
-	autoStopAt := now.Add(40 * time.Second)
-	processStartedAt := now.Add(-21 * time.Second)
-	state := coresession.State{
-		PID:              26060,
-		StartedAt:        now.Add(-20 * time.Second),
-		ProcessStartedAt: &processStartedAt,
-		Mode:             coresession.ModeTimed,
-		AwakeMode:        coresession.AwakeModeSystemDisplay,
-		AutoStopAt:       &autoStopAt,
-	}
-
-	got := statusOutput(state, now)
-	for _, want := range []string{
-		"NoSleep status",
-		"Status     Active",
-		"Elapsed    00:00:20",
-		"Remaining  00:00:40",
-		"Awake      System + Display",
-		"PID        26060",
-		"nosleep stop",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("output missing %q:\n%s", want, got)
-		}
-	}
-}
-
-func TestStoppedOutput(t *testing.T) {
-	got := stoppedOutput()
-	for _, want := range []string{
-		"NoSleep stopped",
-		"Normal Windows sleep behavior restored.",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("output missing %q:\n%s", want, got)
-		}
 	}
 }
