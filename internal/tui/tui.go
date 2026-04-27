@@ -31,39 +31,60 @@ var (
 	mutedStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("245"))
 
-	timerStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("213")).
-			Bold(true)
-
-	modeStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("117"))
-
 	footerStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("244"))
 )
 
 type tickMsg time.Time
 
+const (
+	SessionOpenEnded = "Open-ended"
+	SessionTimed     = "Timed session"
+	SessionUntil     = "Until time"
+)
+
+type Session struct {
+	Duration   time.Duration
+	AutoStopAt time.Time
+	Kind       string
+	Label      string
+}
+
 type model struct {
 	width      int
 	height     int
 	duration   time.Duration
-	mode       string
+	kind       string
+	label      string
 	indefinite bool
 	startedAt  time.Time
+	autoStopAt time.Time
 	now        time.Time
 	quitting   bool
 	done       bool
 	frame      int
 }
 
-func initialModel(d time.Duration, mode string) model {
+func initialModel(session Session) model {
 	now := time.Now()
+	kind := session.Kind
+	if kind == "" {
+		kind = SessionOpenEnded
+	}
+	startedAt := now
+	autoStopAt := session.AutoStopAt
+	duration := session.Duration
+	if !autoStopAt.IsZero() {
+		duration = autoStopAt.Sub(startedAt)
+	}
+
 	return model{
-		duration:   d,
-		mode:       mode,
-		indefinite: d == 0,
+		duration:   duration,
+		kind:       kind,
+		label:      session.Label,
+		indefinite: autoStopAt.IsZero() && duration == 0,
 		startedAt:  now,
+		autoStopAt: autoStopAt,
 		now:        now,
 	}
 }
@@ -134,8 +155,8 @@ func (m model) compactView() string {
 		m.displayTime(),
 	}
 
-	if m.width >= 20 && !m.isGenericMode() {
-		lines = append(lines, trimToWidth("Mode: "+m.mode, m.width))
+	if m.width >= 20 {
+		lines = append(lines, trimToWidth("Mode: "+m.kind, m.width))
 	}
 
 	if m.height >= 5 {
@@ -150,29 +171,32 @@ func (m model) normalView(width int) string {
 		lipgloss.Left,
 		kickerStyle.Render("NOSLEEP"),
 		titleStyle.Render("Preventing sleep during passive work"),
-		mutedStyle.Render(m.headerMeta(width)),
 	)
 
-	timerBlock := lipgloss.JoinVertical(
-		lipgloss.Left,
-		mutedStyle.Render(m.timerLabel()),
-		timerStyle.Render(m.displayTime()),
-		mutedStyle.Render(m.timerMeta()),
-		mutedStyle.Render(m.protectionMeta()),
+	rows := []string{
+		m.row("Mode", m.kind),
+		m.row("Started", m.startedAt.Format("15:04:05")),
+		m.row("Elapsed", formatDuration(m.elapsed())),
+	}
+	if !m.indefinite {
+		rows = append(rows, m.row("Remaining", formatDuration(m.remaining())))
+	}
+	rows = append(rows,
+		m.row("Auto-stop", m.autoStopText()),
+		m.row("Awake", "System + Display"),
 	)
 
-	modeLine := ""
-	if !m.isGenericMode() {
-		modeLine = modeStyle.Render("Mode: " + m.mode)
+	if !m.isGenericLabel() {
+		rows = append(rows, m.row("Label", m.label))
 	}
 
-	footer := footerStyle.Render("Q / ESC / CTRL+C to exit")
-
-	parts := []string{header, "", timerBlock, ""}
-	if modeLine != "" {
-		parts = append(parts, modeLine, "")
+	footerLines := []string{}
+	if m.indefinite {
+		footerLines = append(footerLines, "Tip: use --duration 1h or --until 18:00")
 	}
-	parts = append(parts, footer)
+	footerLines = append(footerLines, "Press Q, ESC, or CTRL+C to stop")
+
+	parts := []string{header, "", strings.Join(rows, "\n"), "", footerStyle.Render(strings.Join(footerLines, "\n"))}
 
 	content := lipgloss.JoinVertical(lipgloss.Left, parts...)
 
@@ -198,21 +222,6 @@ func (m model) remaining() time.Duration {
 	return remaining
 }
 
-func (m model) progressRatio() float64 {
-	if m.indefinite || m.duration <= 0 {
-		return 0
-	}
-
-	ratio := float64(m.elapsed()) / float64(m.duration)
-	if ratio < 0 {
-		return 0
-	}
-	if ratio > 1 {
-		return 1
-	}
-	return ratio
-}
-
 func (m model) displayTime() string {
 	if m.indefinite {
 		return formatDuration(m.elapsed())
@@ -220,48 +229,26 @@ func (m model) displayTime() string {
 	return formatDuration(m.remaining())
 }
 
-func (m model) timerLabel() string {
-	if m.indefinite {
-		return "Elapsed"
-	}
-	return "Remaining"
-}
-
-func (m model) timerMeta() string {
-	if m.indefinite {
-		return "Running until you stop it"
-	}
-	return fmt.Sprintf("%.0f%% complete", m.progressRatio()*100)
-}
-
-func (m model) protectionMeta() string {
-	if m.indefinite {
-		return "System and display stay awake"
-	}
-	return "Sleep prevention is active"
-}
-
-func (m model) headerMeta(width int) string {
-	meta := fmt.Sprintf("%s  |  %s", m.sessionKind(), m.now.Format("15:04:05"))
-	return trimToWidth(meta, width)
-}
-
 func (m model) compactMeta() string {
-	if m.indefinite {
-		return "Open-ended session"
-	}
-	return "Timed session"
+	return m.kind
 }
 
-func (m model) sessionKind() string {
-	if m.indefinite {
-		return "Open-ended"
+func (m model) autoStopText() string {
+	if m.autoStopAt.IsZero() {
+		return "None"
 	}
-	return "Timed"
+	if sameDate(m.startedAt, m.autoStopAt) {
+		return m.autoStopAt.Format("15:04:05")
+	}
+	return m.autoStopAt.Format("2006-01-02 15:04:05")
 }
 
-func (m model) isGenericMode() bool {
-	return strings.TrimSpace(strings.ToLower(m.mode)) == "" || strings.TrimSpace(strings.ToLower(m.mode)) == "generic"
+func (m model) row(label, value string) string {
+	return fmt.Sprintf("%-11s %s", label, value)
+}
+
+func (m model) isGenericLabel() bool {
+	return strings.TrimSpace(strings.ToLower(m.label)) == "" || strings.TrimSpace(strings.ToLower(m.label)) == "generic"
 }
 
 func formatDuration(d time.Duration) string {
@@ -308,8 +295,14 @@ func minInt(a, b int) int {
 	return b
 }
 
-func Start(duration time.Duration, mode string) error {
-	p := tea.NewProgram(initialModel(duration, mode), tea.WithAltScreen())
+func sameDate(a, b time.Time) bool {
+	ay, am, ad := a.Date()
+	by, bm, bd := b.Date()
+	return ay == by && am == bm && ad == bd
+}
+
+func Start(session Session) error {
+	p := tea.NewProgram(initialModel(session), tea.WithAltScreen())
 	_, err := p.Run()
 	return err
 }
