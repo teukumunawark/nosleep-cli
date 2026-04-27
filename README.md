@@ -130,13 +130,3 @@ git push origin v0.1.1
 The release workflow runs tests, builds Windows `amd64` and `arm64` binaries,
 writes SHA-256 checksums, and attaches the installer script to the GitHub
 release.
-
-## Project Layout
-
-```text
-cmd/nosleep/            CLI entry point
-internal/keepawake/     Windows keep-awake integration
-internal/session/       Background state and process management
-internal/timer/         Duration and until-time parsing
-internal/tui/           Terminal UI
-```
