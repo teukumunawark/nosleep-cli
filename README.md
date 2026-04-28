@@ -1,7 +1,5 @@
 # NoSleep CLI
 
----
-
 <img src="assets/nosleep-logo.avif" alt="NoSleep CLI" width="480">
 
 **Keep your Windows machine awake from the command line.**
