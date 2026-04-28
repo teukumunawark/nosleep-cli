@@ -37,18 +37,7 @@ func RunBackground(duration time.Duration, autoStopAt *time.Time, mode, label st
 
 	startedAt := time.Now()
 
-	args := []string{
-		"start",
-		"--background-worker",
-		"--started-at", startedAt.Format(time.RFC3339Nano),
-		"--session-mode", mode,
-		"--mode", label,
-	}
-	if autoStopAt != nil {
-		args = append(args, "--auto-stop-at", autoStopAt.Format(time.RFC3339Nano))
-	}
-
-	cmd := exec.Command(executable, args...)
+	cmd := exec.Command(executable, backgroundWorkerArgs(startedAt, autoStopAt, mode, label)...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		CreationFlags: windows.DETACHED_PROCESS | windows.CREATE_NEW_PROCESS_GROUP,
 		HideWindow:    true,
@@ -64,16 +53,7 @@ func RunBackground(duration time.Duration, autoStopAt *time.Time, mode, label st
 		return fmt.Errorf("query background process start time: %w", err)
 	}
 
-	state := coresession.State{
-		PID:              cmd.Process.Pid,
-		StartedAt:        startedAt,
-		ProcessStartedAt: &processStartedAt,
-		Mode:             mode,
-		AwakeMode:        coresession.AwakeModeSystemDisplay,
-		AutoStopAt:       autoStopAt,
-		Executable:       executable,
-		Label:            label,
-	}
+	state := backgroundWorkerState(cmd.Process.Pid, startedAt, processStartedAt, autoStopAt, executable, mode, label)
 
 	if err := store.Write(state); err != nil {
 		_ = cmd.Process.Kill()
@@ -89,22 +69,11 @@ func RunBackground(duration time.Duration, autoStopAt *time.Time, mode, label st
 }
 
 func RunBackgroundWorker(startedAtStr, autoStopAtStr, mode, label string) error {
-	startedAt, err := time.Parse(time.RFC3339Nano, startedAtStr)
+	startedAt, autoStopAt, err := parseBackgroundWorkerTimes(startedAtStr, autoStopAtStr)
 	if err != nil {
-		return fmt.Errorf("parse background worker start time: %w", err)
+		return err
 	}
-
-	var autoStopAt *time.Time
-	if autoStopAtStr != "" {
-		parsed, err := time.Parse(time.RFC3339Nano, autoStopAtStr)
-		if err != nil {
-			return fmt.Errorf("parse background worker auto-stop time: %w", err)
-		}
-		autoStopAt = &parsed
-	}
-	if mode == "" {
-		mode = coresession.ModeOpenEnded
-	}
+	mode = normalizeMode(mode)
 
 	executable, err := os.Executable()
 	if err != nil {
@@ -120,16 +89,7 @@ func RunBackgroundWorker(startedAtStr, autoStopAtStr, mode, label string) error 
 		return fmt.Errorf("query background worker process start time: %w", err)
 	}
 
-	state := coresession.State{
-		PID:              os.Getpid(),
-		StartedAt:        startedAt,
-		ProcessStartedAt: &processStartedAt,
-		Mode:             mode,
-		AwakeMode:        coresession.AwakeModeSystemDisplay,
-		AutoStopAt:       autoStopAt,
-		Executable:       executable,
-		Label:            label,
-	}
+	state := backgroundWorkerState(os.Getpid(), startedAt, processStartedAt, autoStopAt, executable, mode, label)
 	if err := store.Write(state); err != nil {
 		return err
 	}
@@ -167,4 +127,55 @@ func RunBackgroundWorker(startedAtStr, autoStopAtStr, mode, label string) error 
 	}
 
 	return nil
+}
+
+func backgroundWorkerArgs(startedAt time.Time, autoStopAt *time.Time, mode, label string) []string {
+	args := []string{
+		"start",
+		"--background-worker",
+		"--started-at", startedAt.Format(time.RFC3339Nano),
+		"--session-mode", mode,
+		"--mode", label,
+	}
+	if autoStopAt != nil {
+		args = append(args, "--auto-stop-at", autoStopAt.Format(time.RFC3339Nano))
+	}
+	return args
+}
+
+func parseBackgroundWorkerTimes(startedAtStr, autoStopAtStr string) (time.Time, *time.Time, error) {
+	startedAt, err := time.Parse(time.RFC3339Nano, startedAtStr)
+	if err != nil {
+		return time.Time{}, nil, fmt.Errorf("parse background worker start time: %w", err)
+	}
+
+	if autoStopAtStr == "" {
+		return startedAt, nil, nil
+	}
+
+	autoStopAt, err := time.Parse(time.RFC3339Nano, autoStopAtStr)
+	if err != nil {
+		return time.Time{}, nil, fmt.Errorf("parse background worker auto-stop time: %w", err)
+	}
+	return startedAt, &autoStopAt, nil
+}
+
+func normalizeMode(mode string) string {
+	if mode == "" {
+		return coresession.ModeOpenEnded
+	}
+	return mode
+}
+
+func backgroundWorkerState(pid int, startedAt, processStartedAt time.Time, autoStopAt *time.Time, executable, mode, label string) coresession.State {
+	return coresession.State{
+		PID:              pid,
+		StartedAt:        startedAt,
+		ProcessStartedAt: &processStartedAt,
+		Mode:             mode,
+		AwakeMode:        coresession.AwakeModeSystemDisplay,
+		AutoStopAt:       autoStopAt,
+		Executable:       executable,
+		Label:            label,
+	}
 }

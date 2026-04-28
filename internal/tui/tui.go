@@ -19,7 +19,6 @@ const (
 )
 
 var (
-	// Colors
 	accentColor = lipgloss.Color("214")
 	greenColor  = lipgloss.Color("42")
 	yellowColor = lipgloss.Color("220")
@@ -27,7 +26,6 @@ var (
 	mutedColor  = lipgloss.Color("244")
 	whiteColor  = lipgloss.Color("15")
 
-	// Styles
 	cardStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("8")).
@@ -104,11 +102,9 @@ type model struct {
 	quitting   bool
 	done       bool
 	watchMode  bool
-
-	// Components
-	spinner  spinner.Model
-	progress progress.Model
-	help     help.Model
+	spinner    spinner.Model
+	progress   progress.Model
+	help       help.Model
 }
 
 func initialModel(session Session) model {
@@ -117,12 +113,12 @@ func initialModel(session Session) model {
 	if kind == "" {
 		kind = "Open-ended"
 	}
-	
+
 	startedAt := session.StartedAt
 	if startedAt.IsZero() {
 		startedAt = now
 	}
-	
+
 	autoStopAt := session.AutoStopAt
 	duration := session.Duration
 	if !autoStopAt.IsZero() {
@@ -223,7 +219,6 @@ func (m model) View() string {
 }
 
 func (m model) dashboardView() string {
-	// Header
 	headerTitle := "Active Session"
 	if m.watchMode {
 		headerTitle = "Watching Session"
@@ -235,7 +230,6 @@ func (m model) dashboardView() string {
 		titleStyle.Render(headerTitle),
 	)
 
-	// Session Info Rows
 	rows := []string{
 		m.renderRow("Mode", m.kind),
 		m.renderRow("Label", m.displayLabel()),
@@ -252,7 +246,6 @@ func (m model) dashboardView() string {
 		rows = append(rows, m.renderRow("Auto-stop", "None"))
 	}
 
-	// Help
 	activeKeys := keys
 	if m.watchMode {
 		activeKeys = watchKeys
