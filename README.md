@@ -1,8 +1,37 @@
 # NoSleep CLI
 
+---
+
+<img src="assets/nosleep-logo.avif" alt="NoSleep CLI" width="480">
+
+**Keep your Windows machine awake from the command line.**
+
+<p>
+  <a href="https://github.com/teukumunawark/nosleep-cli/actions/workflows/ci.yml"><img src="https://github.com/teukumunawark/nosleep-cli/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/teukumunawark/nosleep-cli/releases"><img src="https://img.shields.io/github/v/release/teukumunawark/nosleep-cli?label=release" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/platform-Windows-0078D4" alt="Windows">
+  <img src="https://img.shields.io/badge/Go-1.26.2+-00ADD8" alt="Go 1.26.2+">
+</p>
+
+<p>
+  <code>nosleep start --duration 30m</code>
+  &nbsp;|&nbsp;
+  <code>nosleep start --background --duration 2h</code>
+  &nbsp;|&nbsp;
+  <code>nosleep status -w</code>
+</p>
+
+---
+
 NoSleep CLI keeps a Windows machine awake for a fixed duration or until you stop
 it. It uses the Windows `SetThreadExecutionState` API to keep the system and
 display awake without moving the mouse, pressing keys, or simulating user input.
+
+## Quick Install
+
+```powershell
+irm https://raw.githubusercontent.com/teukumunawark/nosleep-cli/main/install.ps1 | iex
+```
 
 ## Install
 
