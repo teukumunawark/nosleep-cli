@@ -39,7 +39,7 @@ jobs:
           foreach ($target in $targets) {
             $env:GOOS = "windows"
             $env:GOARCH = $target.Arch
-            go build -trimpath -ldflags="-s -w" -o "dist/$($target.Output)" ./cmd/nosleep
+            go build -trimpath -ldflags="-s -w -X nosleep-cli/internal/cli.Version=$env:GITHUB_REF_NAME" -o "dist/$($target.Output)" ./cmd/nosleep
           }
 
           Get-ChildItem dist/*.exe | ForEach-Object {
@@ -48,6 +48,7 @@ jobs:
           } | Set-Content -Encoding ascii dist/checksums.txt
 
           Copy-Item install.ps1 dist/install.ps1
+          Copy-Item uninstall.ps1 dist/uninstall.ps1
 
       - name: Publish GitHub release
         shell: pwsh
@@ -59,4 +60,4 @@ jobs:
           gh release create $env:GITHUB_REF_NAME @files `
             --verify-tag `
             --title "NoSleep CLI $env:GITHUB_REF_NAME" `
-            --notes "Windows binaries and checksums are attached to this release. Download install.ps1 to install the matching binary for your system, or download a binary manually and place it in a directory on your User Path."
+            --notes "Windows binaries, checksums, installer, and uninstaller are attached to this release. Run install.ps1 to install or update the matching binary for your system, or download a binary manually and place it in a directory on your User Path."

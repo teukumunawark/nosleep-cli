@@ -1,6 +1,6 @@
 param(
     [string] $Version = "latest",
-    [string] $InstallDir = "$env:LOCALAPPDATA\Programs\nosleep"
+    [string] $InstallDir = "$env:LOCALAPPDATA\Programs\NoSleep"
 )
 
 $ErrorActionPreference = "Stop"
@@ -60,21 +60,145 @@ function Add-UserPathEntry {
         $entries = $userPath -split ";" | Where-Object { $_ }
     }
 
-    $exists = $entries | Where-Object {
+    $updated = $false
+    $exists = $entries | ForEach-Object {
+        $entry = $_
+        $expandedEntry = [Environment]::ExpandEnvironmentVariables($entry).TrimEnd("\")
+        if ($expandedEntry.Equals($expandedPathEntry, [StringComparison]::OrdinalIgnoreCase)) {
+            if (-not $entry.Equals($PathEntry, [StringComparison]::Ordinal)) {
+                $updated = $true
+                return $PathEntry
+            }
+
+            return $entry
+        }
+
+        return $entry
+    }
+
+    $hasEntry = $exists | Where-Object {
         [Environment]::ExpandEnvironmentVariables($_).TrimEnd("\").Equals(
             $expandedPathEntry,
             [StringComparison]::OrdinalIgnoreCase
         )
     } | Select-Object -First 1
 
-    if ($exists) {
+    if ($hasEntry) {
+        if ($updated) {
+            [Environment]::SetEnvironmentVariable("Path", ($exists -join ";"), "User")
+            Write-Host "Updated User Path entry to $PathEntry"
+            return
+        }
+
         Write-Host "User Path already contains $PathEntry"
         return
     }
 
-    $newPath = (($entries + $PathEntry) -join ";")
+    $newPath = (($exists + $PathEntry) -join ";")
     [Environment]::SetEnvironmentVariable("Path", $newPath, "User")
     Write-Host "Added $PathEntry to User Path"
+}
+
+function Repair-InstallDirCasing {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Path
+    )
+
+    $parent = Split-Path -Parent $Path
+    $leaf = Split-Path -Leaf $Path
+    if (-not (Test-Path -LiteralPath $parent)) {
+        return
+    }
+
+    $existing = Get-ChildItem -LiteralPath $parent -Directory -Force | Where-Object {
+        $_.Name.Equals($leaf, [StringComparison]::OrdinalIgnoreCase)
+    } | Select-Object -First 1
+
+    if ($existing -and $existing.Name -cne $leaf) {
+        $temporaryPath = Join-Path $parent ("." + $leaf + "-rename-" + [Guid]::NewGuid().ToString("N"))
+        Rename-Item -LiteralPath $existing.FullName -NewName (Split-Path -Leaf $temporaryPath)
+        Rename-Item -LiteralPath $temporaryPath -NewName $leaf
+    }
+}
+
+function Get-StatePath {
+    $base = $env:LOCALAPPDATA
+    if (-not $base) {
+        $base = [Environment]::GetFolderPath("LocalApplicationData")
+    }
+
+    return Join-Path $base "NoSleepCLI\state.json"
+}
+
+function Get-ProcessPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        $Process
+    )
+
+    try {
+        if ($Process.Path) {
+            return $Process.Path
+        }
+    } catch {
+    }
+
+    try {
+        return $Process.MainModule.FileName
+    } catch {
+        return ""
+    }
+}
+
+function Test-ProcessMatchesPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        $Process,
+
+        [Parameter(Mandatory = $true)]
+        [string] $Path
+    )
+
+    $processPath = Get-ProcessPath -Process $Process
+    if (-not $processPath) {
+        return $false
+    }
+
+    return $processPath.Equals($Path, [StringComparison]::OrdinalIgnoreCase)
+}
+
+function Assert-NoSleepNotRunning {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $TargetPath
+    )
+
+    $statePath = Get-StatePath
+    if (Test-Path -LiteralPath $statePath) {
+        try {
+            $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+            if ($state.pid) {
+                $process = Get-Process -Id ([int] $state.pid) -ErrorAction SilentlyContinue
+                if ($process -and (Test-ProcessMatchesPath -Process $process -Path $state.executable)) {
+                    throw "NoSleep is currently running. Run 'nosleep stop' before updating."
+                }
+            }
+        } catch {
+            if ($_.Exception.Message -like "NoSleep is currently running.*") {
+                throw
+            }
+        }
+    }
+
+    $target = [IO.Path]::GetFullPath($TargetPath)
+    $running = Get-Process -Name "nosleep" -ErrorAction SilentlyContinue | Where-Object {
+        Test-ProcessMatchesPath -Process $_ -Path $target
+    } | Select-Object -First 1
+
+    if ($running) {
+        throw "NoSleep is currently running. Run 'nosleep stop' before updating."
+    }
 }
 
 $arch = Get-WindowsArch
@@ -108,14 +232,19 @@ try {
         throw "Checksum verification failed for $assetName"
     }
 
-    New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
     $targetPath = Join-Path $InstallDir "nosleep.exe"
+    Assert-NoSleepNotRunning -TargetPath $targetPath
+
+    Repair-InstallDirCasing -Path $InstallDir
+    New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
     Copy-Item -LiteralPath $binaryPath -Destination $targetPath -Force
 
     Write-Host "Installed $targetPath"
+    Write-Host "Version: $($release.tag_name)"
     Write-Host "Verified SHA-256: $actualHash"
 
     Add-UserPathEntry -PathEntry $InstallDir
+
     Write-Host "Installation complete! Open a new terminal before running nosleep." -ForegroundColor Green
 } finally {
     Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue

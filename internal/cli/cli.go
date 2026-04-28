@@ -15,6 +15,8 @@ import (
 	"nosleep-cli/internal/worker"
 )
 
+var Version = "dev"
+
 type Session struct {
 	Duration   time.Duration
 	StartedAt  time.Time
@@ -39,10 +41,17 @@ func Run(args []string) error {
 			return RunStatus(args[1:])
 		case "stop":
 			return RunStop()
+		case "version":
+			fmt.Println(VersionString())
+			return nil
 		}
 	}
 
 	return RunStart(args)
+}
+
+func VersionString() string {
+	return "nosleep " + Version
 }
 
 func RunStart(args []string) error {
@@ -152,7 +161,7 @@ func RunStatus(args []string) error {
 			Label:      state.Label,
 			WatchMode:  true,
 		}
-		
+
 		return tui.Start(tuiSess)
 	}
 
@@ -251,7 +260,8 @@ func PrintUsage() {
 	UsagePrintf("  nosleep start [flags]\n")
 	UsagePrintf("  nosleep [flags]\n")
 	UsagePrintf("  nosleep status [-w]\n")
-	UsagePrintf("  nosleep stop\n\n")
+	UsagePrintf("  nosleep stop\n")
+	UsagePrintf("  nosleep version\n\n")
 	UsagePrintf("Flags for start:\n")
 	UsagePrintf("  --duration value   Session duration, for example 30m, 2h, or 1h30m.\n")
 	UsagePrintf("  --until value      Keep awake until a 24-hour time, for example 17:30.\n")
@@ -265,7 +275,8 @@ func PrintUsage() {
 	UsagePrintf("  nosleep start --until 17:30\n\n")
 	UsagePrintf("  nosleep start --background --duration 2h\n")
 	UsagePrintf("  nosleep status -w\n")
-	UsagePrintf("  nosleep stop\n\n")
+	UsagePrintf("  nosleep stop\n")
+	UsagePrintf("  nosleep version\n\n")
 	UsagePrintf("Notes:\n")
 	UsagePrintf("  - Press Q, ESC, or Ctrl+C to stop the session.\n")
 	UsagePrintf("  - Uses the Windows SetThreadExecutionState API.\n")

@@ -16,7 +16,7 @@ The installer:
 
 - downloads the binary for the current Windows architecture
 - verifies the binary with the release SHA-256 checksum
-- installs `nosleep.exe` to `%LOCALAPPDATA%\Programs\nosleep`
+- installs `nosleep.exe` to `%LOCALAPPDATA%\Programs\NoSleep`
 - appends the install directory to the User `Path`
 
 Open a new terminal after installation, then verify the command location:
@@ -28,8 +28,40 @@ where.exe nosleep
 Expected output:
 
 ```text
-C:\Users\<you>\AppData\Local\Programs\nosleep\nosleep.exe
+C:\Users\<you>\AppData\Local\Programs\NoSleep\nosleep.exe
 ```
+
+Check the installed version:
+
+```powershell
+nosleep version
+```
+
+## Update
+
+Run the installer again to replace the local binary with the latest release:
+
+```powershell
+irm https://raw.githubusercontent.com/teukumunawark/nosleep-cli/main/install.ps1 | iex
+```
+
+If NoSleep is running in the background, stop it before updating:
+
+```powershell
+nosleep stop
+```
+
+## Uninstall
+
+Stop any active session, then run the uninstaller:
+
+```powershell
+nosleep stop
+irm https://raw.githubusercontent.com/teukumunawark/nosleep-cli/main/uninstall.ps1 | iex
+```
+
+The uninstaller removes `nosleep.exe`, removes `%LOCALAPPDATA%\Programs\NoSleep`
+from the User `Path`, and removes NoSleep's local state file.
 
 ### Manual install
 
@@ -69,6 +101,12 @@ Start in the background:
 nosleep start --background --duration 2h
 nosleep status
 nosleep stop
+```
+
+Show the installed version:
+
+```powershell
+nosleep version
 ```
 
 Attach a label to the session:
@@ -128,5 +166,5 @@ git push origin v0.1.1
 ```
 
 The release workflow runs tests, builds Windows `amd64` and `arm64` binaries,
-writes SHA-256 checksums, and attaches the installer script to the GitHub
-release.
+writes SHA-256 checksums, and attaches the installer and uninstaller scripts to
+the GitHub release.

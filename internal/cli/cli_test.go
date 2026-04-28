@@ -62,6 +62,19 @@ func TestNewSession(t *testing.T) {
 	}
 }
 
+func TestVersionString(t *testing.T) {
+	oldVersion := Version
+	t.Cleanup(func() {
+		Version = oldVersion
+	})
+
+	Version = "v1.2.3"
+
+	if got := VersionString(); got != "nosleep v1.2.3" {
+		t.Fatalf("version string = %q, want %q", got, "nosleep v1.2.3")
+	}
+}
+
 func TestStartSessionTUISession(t *testing.T) {
 	autoStopAt := time.Date(2026, 4, 24, 18, 0, 0, 0, time.Local)
 	startedAt := time.Date(2026, 4, 24, 16, 0, 0, 0, time.Local)
