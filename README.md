@@ -175,14 +175,6 @@ Run checks:
 go test .\...
 ```
 
-The repository also includes a convenience build script:
-
-```powershell
-.\build.ps1
-```
-
-By default, the script writes the binary to `C:\Tools\nosleep\nosleep.exe`.
-
 ## Release
 
 Releases are built by GitHub Actions from version tags:
