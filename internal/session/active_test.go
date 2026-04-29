@@ -65,6 +65,14 @@ func TestActiveState(t *testing.T) {
 		assertStateRemovedAndFalse(t, store, storePath, unmatchingState)
 	})
 
+	t.Run("expired auto stop", func(t *testing.T) {
+		expiredAt := time.Now().Add(-time.Minute)
+		expiredState := validState
+		expiredState.Mode = ModeTimed
+		expiredState.AutoStopAt = &expiredAt
+		assertStateRemovedAndFalse(t, store, storePath, expiredState)
+	})
+
 	t.Run("invalid state", func(t *testing.T) {
 		invalidState := validState
 		invalidState.Mode = "invalid_mode"

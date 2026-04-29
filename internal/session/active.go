@@ -1,6 +1,9 @@
 package session
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
 
 func ActiveState(store Store) (State, bool, error) {
 	state, ok, err := store.Read()
@@ -22,6 +25,12 @@ func ActiveState(store Store) (State, bool, error) {
 		return State{}, false, err
 	}
 	if !matches {
+		if err := store.Remove(); err != nil {
+			return State{}, false, err
+		}
+		return State{}, false, nil
+	}
+	if state.AutoStopAt != nil && !state.AutoStopAt.After(time.Now()) {
 		if err := store.Remove(); err != nil {
 			return State{}, false, err
 		}
