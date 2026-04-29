@@ -23,6 +23,9 @@ func TestParseDuration(t *testing.T) {
 		{name: "minutes before hours", value: "30m1h", wantErr: true},
 		{name: "repeated hours", value: "1h2h", wantErr: true},
 		{name: "repeated minutes", value: "10m20m", wantErr: true},
+		{name: "overflow hours", value: "2562048h", wantErr: true},
+		{name: "overflow minutes", value: "153722868m", wantErr: true},
+		{name: "overflow total", value: "2562047h48m", wantErr: true},
 		{name: "invalid", value: "abc", wantErr: true},
 	}
 

@@ -129,3 +129,13 @@ func TestNewSessionRejectsInvalidInputs(t *testing.T) {
 		})
 	}
 }
+
+func TestRunStatusRejectsUnknownArgument(t *testing.T) {
+	err := RunStatus([]string{"unexpected"})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "unknown argument: unexpected") {
+		t.Fatalf("error = %q, want unknown argument", err)
+	}
+}

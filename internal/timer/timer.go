@@ -8,6 +8,8 @@ import (
 	"unicode"
 )
 
+const maxDuration = time.Duration(1<<63 - 1)
+
 func ParseDuration(value string) (time.Duration, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -29,7 +31,7 @@ func ParseDuration(value string) (time.Duration, error) {
 				return 0, fmt.Errorf("missing number before %q", r)
 			}
 
-			n, err := strconv.Atoi(number.String())
+			n, err := strconv.ParseInt(number.String(), 10, 64)
 			if err != nil {
 				return 0, fmt.Errorf("parse duration number: %w", err)
 			}
@@ -40,13 +42,19 @@ func ParseDuration(value string) (time.Duration, error) {
 				if seenHours || seenMinutes {
 					return 0, fmt.Errorf("hours must appear once before minutes")
 				}
-				total += time.Duration(n) * time.Hour
+				total, err = addDurationPart(total, n, time.Hour)
+				if err != nil {
+					return 0, err
+				}
 				seenHours = true
 			case 'm', 'M':
 				if seenMinutes {
 					return 0, fmt.Errorf("minutes must appear once")
 				}
-				total += time.Duration(n) * time.Minute
+				total, err = addDurationPart(total, n, time.Minute)
+				if err != nil {
+					return 0, err
+				}
 				seenMinutes = true
 			}
 			seenUnit = true
@@ -63,6 +71,19 @@ func ParseDuration(value string) (time.Duration, error) {
 	}
 
 	return total, nil
+}
+
+func addDurationPart(total time.Duration, n int64, unit time.Duration) (time.Duration, error) {
+	if n > int64(maxDuration/unit) {
+		return 0, fmt.Errorf("duration is too large")
+	}
+
+	part := time.Duration(n) * unit
+	if total > maxDuration-part {
+		return 0, fmt.Errorf("duration is too large")
+	}
+
+	return total + part, nil
 }
 
 func ParseUntil(now time.Time, value string) (time.Time, error) {

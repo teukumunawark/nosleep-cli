@@ -132,6 +132,9 @@ func RunStatus(args []string) error {
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
+	if flags.NArg() > 0 {
+		return fmt.Errorf("unknown argument: %s", flags.Arg(0))
+	}
 
 	store, err := coresession.DefaultStore()
 	if err != nil {
