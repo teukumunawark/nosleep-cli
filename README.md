@@ -69,7 +69,7 @@ nosleep version
 Run the installer again to replace the local binary with the latest release:
 
 ```powershell
-irm https://raw.githubusercontent.com/teukumunawark/nosleep-cli/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/Lucu-lucuan-Lab/nosleep-cli/main/install.ps1 | iex
 ```
 
 If NoSleep is running in the background, stop it before updating:
@@ -84,7 +84,7 @@ Stop any active session, then run the uninstaller:
 
 ```powershell
 nosleep stop
-irm https://raw.githubusercontent.com/teukumunawark/nosleep-cli/main/uninstall.ps1 | iex
+irm https://raw.githubusercontent.com/Lucu-lucuan-Lab/nosleep-cli/main/uninstall.ps1 | iex
 ```
 
 The uninstaller removes `nosleep.exe`, removes `%LOCALAPPDATA%\Programs\NoSleep`
