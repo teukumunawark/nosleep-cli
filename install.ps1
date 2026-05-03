@@ -5,7 +5,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$repo = "teukumunawark/nosleep-cli"
+$repo = "Lucu-lucuan-Lab/nosleep-cli"
 $apiBase = "https://api.github.com/repos/$repo"
 
 function Get-Release {

@@ -6,7 +6,7 @@
 
 <p>
   <a href="https://github.com/Lucu-lucuan-Lab/nosleep-cli/actions/workflows/ci.yml"><img src="https://github.com/Lucu-lucuan-Lab/nosleep-cli/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/Lucu-lucuan-Lab/nosleep-cli/releases"><img src="https://img.shields.io/github/v/release/teukumunawark/nosleep-cli?label=release" alt="Latest release"></a>
+  <a href="https://github.com/Lucu-lucuan-Lab/nosleep-cli/releases"><img src="https://img.shields.io/github/v/release/Lucu-lucuan-Lab/nosleep-cli?label=release" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/platform-Windows-0078D4" alt="Windows">
   <img src="https://img.shields.io/badge/Go-1.26.2+-00ADD8" alt="Go 1.26.2+">
 </p>
