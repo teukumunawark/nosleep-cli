@@ -5,8 +5,8 @@
 **Keep your Windows machine awake from the command line.**
 
 <p>
-  <a href="https://github.com/teukumunawark/nosleep-cli/actions/workflows/ci.yml"><img src="https://github.com/teukumunawark/nosleep-cli/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/teukumunawark/nosleep-cli/releases"><img src="https://img.shields.io/github/v/release/teukumunawark/nosleep-cli?label=release" alt="Latest release"></a>
+  <a href="https://github.com/Lucu-lucuan-Lab/nosleep-cli/actions/workflows/ci.yml"><img src="https://github.com/Lucu-lucuan-Lab/nosleep-cli/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/Lucu-lucuan-Lab/nosleep-cli/releases"><img src="https://img.shields.io/github/v/release/teukumunawark/nosleep-cli?label=release" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/platform-Windows-0078D4" alt="Windows">
   <img src="https://img.shields.io/badge/Go-1.26.2+-00ADD8" alt="Go 1.26.2+">
 </p>
@@ -28,7 +28,7 @@ display awake without moving the mouse, pressing keys, or simulating user input.
 ## Quick Install
 
 ```powershell
-irm https://raw.githubusercontent.com/teukumunawark/nosleep-cli/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/Lucu-lucuan-Lab/nosleep-cli/main/install.ps1 | iex
 ```
 
 ## Install
@@ -36,7 +36,7 @@ irm https://raw.githubusercontent.com/teukumunawark/nosleep-cli/main/install.ps1
 Run the following command in PowerShell to download and install the latest release automatically:
 
 ```powershell
-irm https://raw.githubusercontent.com/teukumunawark/nosleep-cli/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/Lucu-lucuan-Lab/nosleep-cli/main/install.ps1 | iex
 ```
 
 The installer:
